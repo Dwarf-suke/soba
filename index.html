@@ -11,16 +11,6 @@
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="manifest" href="manifest.webmanifest">
-<script>
-  // ホーム画面のアイコンから開いたときとパソコンでは、この案内を出さずに価格表へ進む
-  (function () {
-    var APP = 'https://script.google.com/macros/s/AKfycbzNtJ4px7qr9At-ffOWch1ic2zlGMCXyeKbhmel2H4uZYpnj6s_f2c73uuOkm90B11vjw/exec';
-    var fromIcon = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
-    var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1;
-    if (fromIcon || !isMobile) window.location.replace(APP);
-    window.APP_URL = APP;
-  })();
-</script>
 <style>
   :root{--navy:#0b2f44;--muted:#66757f;--line:#dbe3e8;--soft:#f4f6f8;--accent:#e8f3fa}
   *{box-sizing:border-box}
@@ -39,13 +29,14 @@
   ol li::before{content:counter(s);position:absolute;left:0;top:1px;width:22px;height:22px;border-radius:50%;background:var(--navy);color:#fff;font-size:13px;font-weight:700;line-height:22px;text-align:center}
   .after{margin:12px 0 0;font-size:13px;color:var(--navy)}
   [hidden]{display:none}
-  .open{display:block;margin:20px 0 8px;padding:14px;border-radius:10px;background:var(--navy);color:#fff;font-size:16px;font-weight:700;text-align:center;text-decoration:none}
+  .open{display:block;width:100%;margin:20px 0 8px;padding:14px;border:0;border-radius:10px;background:var(--navy);color:#fff;font:inherit;font-size:16px;font-weight:700;text-align:center;cursor:pointer}
+  #app{position:fixed;top:env(safe-area-inset-top);left:0;width:100%;height:calc(100% - env(safe-area-inset-top));border:0;background:#fff}
   .sub{margin:0;font-size:12.5px;color:var(--muted);text-align:center}
   footer{margin-top:28px;padding-top:14px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);text-align:center}
 </style>
 </head>
 <body>
-<main>
+<main id="guide" hidden>
   <div class="head">
     <img src="icon-512.png" alt="Dwarfのアイコン">
     <h1>Dwarf 買取価格表</h1>
@@ -67,16 +58,46 @@
     <p class="after">追加したドワーフのアイコンから開き、合言葉を入力してください。</p>
   </section>
 
-  <a class="open" id="open" href="#">追加せずに価格表を開く</a>
+  <button class="open" id="open" type="button">追加せずに価格表を開く</button>
   <p class="sub">合言葉は、お渡しした案内に記載しています。</p>
 
   <footer>Dwarf SECONDHAND STORE</footer>
 </main>
 <script>
-  document.getElementById('open').href = window.APP_URL;
-  if (/Android/i.test(navigator.userAgent)) {
-    document.getElementById('ios').hidden = true;
-    document.getElementById('android').hidden = false;
+  var APP = 'https://script.google.com/macros/s/AKfycbzNtJ4px7qr9At-ffOWch1ic2zlGMCXyeKbhmel2H4uZYpnj6s_f2c73uuOkm90B11vjw/exec';
+  var KEY = 'dwarfPartnerCode';
+  var FRAME_ORIGIN = /^https:\/\/[a-z0-9-]+\.script\.googleusercontent\.com$/; // 価格表の画面だけと合言葉をやり取りする
+
+  function loadCode() { try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; } }
+  function saveCode(code) { try { code ? localStorage.setItem(KEY, code) : localStorage.removeItem(KEY); } catch (e) {} }
+
+  window.addEventListener('message', function (e) {
+    if (!FRAME_ORIGIN.test(e.origin) || !e.data) return;
+    if (e.data.type === 'dwarf-ready') e.source.postMessage({type: 'dwarf-code', code: loadCode()}, e.origin);
+    if (e.data.type === 'dwarf-save') saveCode(String(e.data.code || ''));
+  });
+
+  function openApp() {
+    document.getElementById('guide').hidden = true;
+    var frame = document.createElement('iframe');
+    frame.id = 'app';
+    frame.title = 'Dwarf 買取価格表';
+    frame.src = APP;
+    document.body.appendChild(frame);
+  }
+
+  // ホーム画面のアイコンから開いたときとパソコンでは、案内を出さずに価格表を開く
+  var fromIcon = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+  var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1;
+  if (fromIcon || !isMobile) {
+    openApp();
+  } else {
+    document.getElementById('guide').hidden = false;
+    document.getElementById('open').addEventListener('click', openApp);
+    if (/Android/i.test(navigator.userAgent)) {
+      document.getElementById('ios').hidden = true;
+      document.getElementById('android').hidden = false;
+    }
   }
 </script>
 </body>
